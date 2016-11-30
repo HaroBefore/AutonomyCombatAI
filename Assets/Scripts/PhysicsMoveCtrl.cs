@@ -120,22 +120,31 @@ class SteeringBehaviours
     }
 
 
-    public float wanderRadius = 3f;
-    public float wanderDistance = 10f;
-    public float wanderJitter = 1f;
+    public float wanderRadius = 5f;
+    public float wanderDistance = 8f;
+    public float wanderJitter = 40f;
     Vector3 wanderTarget;
     Vector3 Wander()
     {
-        wanderTarget = transform.position;
+        //wanderTarget = transform.position;
+        wanderTarget = Vector3.zero;
         wanderTarget += new Vector3(UnityEngine.Random.Range(-1f, 1f) * wanderJitter, 0f, UnityEngine.Random.Range(-1f, 1f) * wanderJitter);
         wanderTarget.Normalize();
 
+        Debug.Log("Normalize wanderTarget : " + wanderTarget);
+
         wanderTarget *= wanderRadius;
 
-        Vector3 targetLocal = wanderTarget + new Vector3(0f, 0f, wanderDistanced);
+        Debug.Log("wanderTarget with Radius : " + wanderTarget);
+
+
+        Vector3 targetLocal = wanderTarget + new Vector3(wanderDistance, 0f, wanderDistance);
+        Debug.Log(targetLocal);
         Vector3 targetWorld = transform.InverseTransformVector(targetLocal);
 
-        moveCtrl.SetWanderGizmos(targetWorld, wanderRadius);
+        Debug.Log(targetWorld);
+
+        moveCtrl.SetWanderGizmos(transform.position + transform.forward * wanderDistance, wanderRadius);
 
         return targetWorld - transform.position;
     }
