@@ -20,11 +20,12 @@ class SteeringBehaviours
         arrive,
         wander,
         obstacleAvoidance,
+        wallAvoidance,
         EndOfBehaviour
     }
 
     bool[] isDoingBehavior;
-    public 
+    public
     int behaviourCnt;
     public int BehaviourCnt
     {
@@ -73,6 +74,10 @@ class SteeringBehaviours
         {
             steeringForce += ObstacleAvoidance();
         }
+        if(isDoingBehavior[(int)eSteeringBehaviour.wallAvoidance])
+        {
+            steeringForce += WallAvoidance();
+        }
 
         return steeringForce;
     }
@@ -89,14 +94,14 @@ class SteeringBehaviours
 
     Vector3 Seek(Vector3 targetPos)
     {
-        Vector3 desiredVelocity = Vector3.Normalize(targetPos - transform.position) * moveCtrl.maxSpeed;
+        Vector3 desiredVelocity = Vector3.Normalize(targetPos - transform.position) * moveCtrl.maxForce;
         desiredVelocity = new Vector3(desiredVelocity.x, 0f, desiredVelocity.z);
         return desiredVelocity - rigidbody.velocity;
     }
 
     Vector3 Flee(Vector3 targetPos)
     {
-        Vector3 desiredVelocity = Vector3.Normalize(transform.position - targetPos) * moveCtrl.maxSpeed;
+        Vector3 desiredVelocity = Vector3.Normalize(transform.position - targetPos) * moveCtrl.maxForce;
         desiredVelocity = new Vector3(desiredVelocity.x, 0f, desiredVelocity.z);
         return desiredVelocity - rigidbody.velocity;
     }
@@ -106,10 +111,10 @@ class SteeringBehaviours
         Vector3 toTarget = targetPos - transform.position;
 
         float dist = toTarget.magnitude;
-        if(dist > 0)
+        if (dist > 0)
         {
             //const float decelerationTweaker = 0.3f;
-            float speed = dist*4 / (float)deceleration;// * decelerationTweaker;
+            float speed = dist * 4 / (float)deceleration;// * decelerationTweaker;
             speed = Mathf.Min(speed, moveCtrl.maxSpeed);
 
             Vector3 desiredVelocity = toTarget * speed / dist;
@@ -120,9 +125,9 @@ class SteeringBehaviours
     }
 
 
-    public float wanderRadius = 5f;
-    public float wanderDistance = 8f;
-    public float wanderJitter = 40f;
+    public float wanderRadius = 4f;
+    public float wanderDistance = 4f;
+    public float wanderJitter = 1.5f;
     Vector3 wanderTarget;
     Vector3 Wander()
     {
@@ -131,36 +136,137 @@ class SteeringBehaviours
         wanderTarget += new Vector3(UnityEngine.Random.Range(-1f, 1f) * wanderJitter, 0f, UnityEngine.Random.Range(-1f, 1f) * wanderJitter);
         wanderTarget.Normalize();
 
-        Debug.Log("Normalize wanderTarget : " + wanderTarget);
+        //Debug.Log("Normalize wanderTarget : " + wanderTarget);
 
         wanderTarget *= wanderRadius;
 
-        Debug.Log("wanderTarget with Radius : " + wanderTarget);
+        //Debug.Log(wanderTarget);
 
 
-        Vector3 targetLocal = wanderTarget + new Vector3(wanderDistance, 0f, wanderDistance);
-        Debug.Log(targetLocal);
-        Vector3 targetWorld = transform.InverseTransformVector(targetLocal);
+        //Debug.Log("wanderTarget with Radius : " + wanderTarget);
 
-        Debug.Log(targetWorld);
 
-        moveCtrl.SetWanderGizmos(transform.position + transform.forward * wanderDistance, wanderRadius);
+        //Vector3 targetLocal = wanderTarget + new Vector3(wanderDistance, 0f, wanderDistance);
+        Vector3 targetWorld = transform.position + (transform.forward * wanderDistance) + wanderTarget;
 
-        return targetWorld - transform.position;
+        moveCtrl.SetWanderGizmos(targetWorld, transform.position + (transform.forward * wanderDistance), wanderRadius);
+
+        //Debug.Log(targetWorld - transform.position);
+
+        return (targetWorld - transform.position) * 2f;
     }
 
     float minDetectionBoxLength = 3f;
     Vector3 ObstacleAvoidance()
     {
-        Collider[] results = null;
-        Vector3 boxLength = new Vector3(0.5f, 0.5f, minDetectionBoxLength + rigidbody.velocity.magnitude / moveCtrl.maxSpeed);
-        Physics.OverlapBoxNonAlloc(transform.position + transform.forward * 2f, boxLength, results, transform.localRotation, LayerMask.NameToLayer("Obstacle"));
+        Collider[] results = new Collider[30];
+        Vector3 boxLength = new Vector3(2f, 2f, minDetectionBoxLength + (rigidbody.velocity.magnitude / moveCtrl.maxSpeed) * minDetectionBoxLength);
+        Physics.OverlapBoxNonAlloc(transform.position + (transform.forward * boxLength.z * 0.5f), boxLength, results, transform.localRotation);
 
-        //임시
-        return Vector3.zero;
+        float distToClosestIP = 1000f;
+        Collider closestIntersectingObstacle = null;
+        Vector3 localPosOfCllosestObstacle = Vector3.zero;
+
+        for (int i = 0; i < results.Length; i++)
+        {
+            if (results[i] != null)
+            {
+                if (results[i].CompareTag("Obstacle"))
+                {
+                    Vector3 localPos = transform.InverseTransformPoint(results[i].transform.position);
+                    if (localPos.z >= 0)
+                    {
+                        float expandedRadius = 10f;
+                        if (Mathf.Abs(localPos.x) < expandedRadius)
+                        {
+                            float cz = localPos.z;
+                            float cx = localPos.x;
+
+                            float sqrtPart = (float)Math.Sqrt(expandedRadius * expandedRadius - cx * cx);
+                            float ip = cz - sqrtPart;
+
+                            if (ip <= 0f)
+                            {
+                                ip = cx + sqrtPart;
+                            }
+
+                            if (ip < distToClosestIP)
+                            {
+                                distToClosestIP = ip;
+                                closestIntersectingObstacle = results[i];
+                                localPosOfCllosestObstacle = localPos;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Vector3 steeringForce = Vector3.zero;
+        if (closestIntersectingObstacle != null)
+        {
+            float multiplier = 1f + (boxLength.z - localPosOfCllosestObstacle.z) / boxLength.z;
+            steeringForce.x = (10f - localPosOfCllosestObstacle.x) * multiplier;
+
+            const float breakingWeight = 1f;
+            steeringForce.z = (10f - localPosOfCllosestObstacle.z) * breakingWeight;
+        }
+
+        moveCtrl.SetObstacleAvoidanceGizmos(boxLength);
+
+        return transform.TransformVector(steeringForce);
     }
 
+    Vector3 WallAvoidance()
+    {
+        Ray[] feels = new Ray[3];
+        RaycastHit[] hit = new RaycastHit[3];
+        for (int i = 0; i < feels.Length; i++)
+        {
+            feels[i].origin = transform.position;
+        }
+        feels[0].direction = transform.TransformDirection(new Vector3(1f, 0f, 1f));
+        feels[1].direction = transform.TransformDirection(new Vector3(-1f, 0f, 1f));
+        feels[2].direction = transform.TransformDirection(new Vector3(0f, 0f, 1f));
+
+        for (int i = 0; i < hit.Length; i++)
+        {
+            Physics.Raycast(feels[i], out hit[i], 5f);
+        }
+
+        float distToThisIP = 0f;
+        float distToClosestIP = 1000f * 1000f;
+
+        Vector3 steeringForce = Vector3.zero
+            , point = Vector3.zero
+            , closestPoint = Vector3.zero;
+
+        for (int i = 0; i < feels.Length; i++)
+        {
+            if (hit[i].collider != null)
+            {
+                if (hit[i].collider.CompareTag("Wall"))
+                {
+                    distToThisIP = (transform.position - hit[i].point).sqrMagnitude;
+                    if (distToThisIP < distToClosestIP)
+                    {
+                        distToClosestIP = distToThisIP;
+                        closestPoint = transform.InverseTransformPoint(hit[i].point);
+                    }
+                }
+
+                Vector3 overShoot = feels[i].direction - closestPoint * 8f;
+                steeringForce = hit[i].transform.forward * overShoot.magnitude;
+            }
+        }
+
+        moveCtrl.SetWallAvoidanceGizmos(feels[2], feels[0], feels[1]);
+
+        return steeringForce;
+    }
 }
+
+
 
 public class PhysicsMoveCtrl : MonoBehaviour {
 
@@ -192,7 +298,7 @@ public class PhysicsMoveCtrl : MonoBehaviour {
 
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
-        Physics.Raycast(ray, out hit, 100f);
+        Physics.Raycast(ray, out hit, 200f);
         if(hit.collider != null)
         {
             if (hit.collider.CompareTag("Floor"))
@@ -200,14 +306,20 @@ public class PhysicsMoveCtrl : MonoBehaviour {
             else
                 targetPos = Vector3.zero;
 
-            steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.arrive, true);
+            steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.seek, true);
+            steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.obstacleAvoidance, true);
+            steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wallAvoidance, true);
         }
         else
         {
             steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wander, true);
+            steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.obstacleAvoidance, true);
+            steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wallAvoidance, true);
         }
 
         //steeringForce = steering.Calculate(targetPos);
+
+        //Debug.Log("속도 : " + rigidbody.velocity);
 
         Quaternion rot = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(rigidbody.velocity), 10f * Time.deltaTime);
         rot = Quaternion.Euler(new Vector3(0f, rot.eulerAngles.y, 0f));
@@ -220,13 +332,10 @@ public class PhysicsMoveCtrl : MonoBehaviour {
 
     IEnumerator AIUpdate()
     {
-        yield return new WaitForSeconds(0.05f);
+        yield return new WaitForSeconds(0.08f);
         steeringForce = steering.Calculate(targetPos);
         StartCoroutine(AIUpdate());
     }
-
-    Vector3 debugWanderSphereCenter;
-    float debugWanderSphereRadius;
 
     void OnDrawGizmos()
     {
@@ -236,23 +345,50 @@ public class PhysicsMoveCtrl : MonoBehaviour {
 
             if(steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wander))
             {
+                Gizmos.DrawWireSphere(debugWanderDesirePos, 0.5f);
                 Gizmos.DrawWireSphere(debugWanderSphereCenter, debugWanderSphereRadius);
             }
             if(steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.obstacleAvoidance))
             {
-
+                Gizmos.color = Color.red;
+                Gizmos.DrawRay(transform.position, transform.forward * debugObstacleAvoidanceBoxScale.z);
+            }
+            if(steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wallAvoidance))
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawLine(transform.position, transform.position + debugWallAvoidanceFoward.direction * 5f);
+                Gizmos.DrawLine(transform.position, transform.position + debugWallAvoidanceRight.direction * 5f);
+                Gizmos.DrawLine(transform.position, transform.position + debugWallAvoidanceLeft.direction * 5f);
             }
         }
 
     }
 
-    public void SetWanderGizmos(Vector3 center, float radius)
+    Vector3 debugWanderDesirePos;
+    Vector3 debugWanderSphereCenter;
+    float debugWanderSphereRadius;
+    public void SetWanderGizmos(Vector3 desirePos, Vector3 circleCenter, float radius)
     {
-        debugWanderSphereCenter = center;
+        debugWanderDesirePos = desirePos;
+        debugWanderSphereCenter = circleCenter;
         debugWanderSphereRadius = radius;
     }
-    
 
+    Vector3 debugObstacleAvoidanceBoxScale;
+    public void SetObstacleAvoidanceGizmos(Vector3 boxScale)
+    {
+        debugObstacleAvoidanceBoxScale = boxScale;
+    }
+
+    Ray debugWallAvoidanceFoward;
+    Ray debugWallAvoidanceRight;
+    Ray debugWallAvoidanceLeft;
+    public void SetWallAvoidanceGizmos(Ray foward, Ray right, Ray left)
+    {
+        debugWallAvoidanceFoward = foward;
+        debugWallAvoidanceRight = right;
+        debugWallAvoidanceLeft = left;
+    }
 
 }
 
