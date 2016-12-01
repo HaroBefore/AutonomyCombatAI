@@ -337,31 +337,34 @@ public class PhysicsMoveCtrl : MonoBehaviour {
         StartCoroutine(AIUpdate());
     }
 
+    public bool isOnDebugGizmos = false;
     void OnDrawGizmos()
     {
-        if(rigidbody != null)
+        if(isOnDebugGizmos)
         {
-            Gizmos.DrawLine(transform.position, transform.position + rigidbody.velocity);
+            if (rigidbody != null)
+            {
+                Gizmos.DrawLine(transform.position, transform.position + rigidbody.velocity);
 
-            if(steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wander))
-            {
-                Gizmos.DrawWireSphere(debugWanderDesirePos, 0.5f);
-                Gizmos.DrawWireSphere(debugWanderSphereCenter, debugWanderSphereRadius);
-            }
-            if(steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.obstacleAvoidance))
-            {
-                Gizmos.color = Color.red;
-                Gizmos.DrawRay(transform.position, transform.forward * debugObstacleAvoidanceBoxScale.z);
-            }
-            if(steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wallAvoidance))
-            {
-                Gizmos.color = Color.green;
-                Gizmos.DrawLine(transform.position, transform.position + debugWallAvoidanceFoward.direction * 5f);
-                Gizmos.DrawLine(transform.position, transform.position + debugWallAvoidanceRight.direction * 5f);
-                Gizmos.DrawLine(transform.position, transform.position + debugWallAvoidanceLeft.direction * 5f);
+                if (steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wander))
+                {
+                    Gizmos.DrawWireSphere(debugWanderDesirePos, 0.5f);
+                    Gizmos.DrawWireSphere(debugWanderSphereCenter, debugWanderSphereRadius);
+                }
+                if (steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.obstacleAvoidance))
+                {
+                    Gizmos.color = Color.red;
+                    Gizmos.DrawRay(transform.position, transform.forward * debugObstacleAvoidanceBoxScale.z);
+                }
+                if (steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wallAvoidance))
+                {
+                    Gizmos.color = Color.green;
+                    Gizmos.DrawLine(transform.position, transform.position + debugWallAvoidanceFoward.direction * 5f);
+                    Gizmos.DrawLine(transform.position, transform.position + debugWallAvoidanceRight.direction * 5f);
+                    Gizmos.DrawLine(transform.position, transform.position + debugWallAvoidanceLeft.direction * 5f);
+                }
             }
         }
-
     }
 
     Vector3 debugWanderDesirePos;
