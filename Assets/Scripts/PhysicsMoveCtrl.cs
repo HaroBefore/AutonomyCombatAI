@@ -18,6 +18,7 @@ class SteeringBehaviours
         seek = 0,
         flee,
         arrive,
+        pursuit,
         wander,
         obstacleAvoidance,
         wallAvoidance,
@@ -123,7 +124,16 @@ class SteeringBehaviours
         }
         return Vector3.zero;
     }
+    
+    Vector3 Pursuit(PhysicsMoveCtrl evader)
+    {
+        Vector3 toEvader = evader.transform.position - transform.position;
 
+        float relativeHeading = Vector3.Dot(transform.forward, evader.transform.position);
+        if ((Vector3.Dot(toEvader, transform.forward) > 0f) && (relativeHeading < -0.95f))
+            return Seek(evader.transform.position);
+        return Vector3.zero;
+    }
 
     public float wanderRadius = 4f;
     public float wanderDistance = 4f;
@@ -206,7 +216,7 @@ class SteeringBehaviours
         if (closestIntersectingObstacle != null)
         {
             float multiplier = 1f + (boxLength.z - localPosOfCllosestObstacle.z) / boxLength.z;
-            steeringForce.x = (10f - localPosOfCllosestObstacle.x) * multiplier;
+            steeringForce.x = (15f - localPosOfCllosestObstacle.x) * multiplier;
 
             const float breakingWeight = 1f;
             steeringForce.z = (10f - localPosOfCllosestObstacle.z) * breakingWeight;
@@ -288,8 +298,16 @@ public class PhysicsMoveCtrl : MonoBehaviour {
         steering = new SteeringBehaviours(this);
         StartCoroutine(AIUpdate());
 	}
-	
-	void FixedUpdate () {
+
+    public bool isAbleSeek = false;
+    public bool isAbleFlee = false;
+    public bool isAbleArrive = false;
+    public bool isAblePursuit = false;
+    public bool isAbleWander = false;
+    public bool isAbleObstacleAvoidance = false;
+    public bool isAbleWallAvoidance = false;
+    
+    void FixedUpdate () {
 
         for (int i = 0; i < steering.BehaviourCnt; i++)
         {
