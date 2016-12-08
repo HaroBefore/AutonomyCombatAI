@@ -1,7 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2015
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutonomyCombatAI.Plugins", "AutonomyCombatAI.Plugins.csproj", "{52F546CC-ED2F-2BA4-5FF9-11C0BD0CDD82}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutonomyCombatAI", "AutonomyCombatAI.csproj", "{7D4A3AB9-B87E-04F8-E258-A949F204F3E9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutonomyCombatAI.Editor", "AutonomyCombatAI.Editor.csproj", "{5CBC11BE-4D57-E851-1CDF-B95802743AF1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,10 +13,18 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{52F546CC-ED2F-2BA4-5FF9-11C0BD0CDD82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{52F546CC-ED2F-2BA4-5FF9-11C0BD0CDD82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{52F546CC-ED2F-2BA4-5FF9-11C0BD0CDD82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{52F546CC-ED2F-2BA4-5FF9-11C0BD0CDD82}.Release|Any CPU.Build.0 = Release|Any CPU
 		{7D4A3AB9-B87E-04F8-E258-A949F204F3E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{7D4A3AB9-B87E-04F8-E258-A949F204F3E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7D4A3AB9-B87E-04F8-E258-A949F204F3E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7D4A3AB9-B87E-04F8-E258-A949F204F3E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5CBC11BE-4D57-E851-1CDF-B95802743AF1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5CBC11BE-4D57-E851-1CDF-B95802743AF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5CBC11BE-4D57-E851-1CDF-B95802743AF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5CBC11BE-4D57-E851-1CDF-B95802743AF1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
