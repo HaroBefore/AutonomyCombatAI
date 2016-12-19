@@ -69,7 +69,7 @@ class SteeringBehaviours
         }
         if (isDoingBehavior[(int)eSteeringBehaviour.pursuit])
         {
-            if (moveCtrl.nearUnit != null)
+            if(moveCtrl.nearUnit != null)
                 steeringForce += Pursuit(moveCtrl.pursuitTarget);
         }
         if (isDoingBehavior[(int)eSteeringBehaviour.wander])
@@ -155,11 +155,22 @@ class SteeringBehaviours
     Vector3 wanderTarget;
     Vector3 Wander()
     {
+        //wanderTarget = transform.position;
         wanderTarget = Vector3.zero;
         wanderTarget += new Vector3(UnityEngine.Random.Range(-1f, 1f) * wanderJitter, 0f, UnityEngine.Random.Range(-1f, 1f) * wanderJitter);
         wanderTarget.Normalize();
 
+        //Debug.Log("Normalize wanderTarget : " + wanderTarget);
+
         wanderTarget *= wanderRadius;
+
+        //Debug.Log(wanderTarget);
+
+
+        //Debug.Log("wanderTarget with Radius : " + wanderTarget);
+
+
+        //Vector3 targetLocal = wanderTarget + new Vector3(wanderDistance, 0f, wanderDistance);
         Vector3 targetWorld = transform.position + (transform.forward * wanderDistance) + wanderTarget;
 
         moveCtrl.SetWanderGizmos(targetWorld, transform.position + (transform.forward * wanderDistance), wanderRadius);
@@ -268,7 +279,7 @@ class SteeringBehaviours
                     }
                 }
 
-                Vector3 overShoot = feels[i].direction - closestPoint * 6f;
+                Vector3 overShoot = feels[i].direction - closestPoint * 8f;
                 steeringForce = hit[i].transform.forward * overShoot.magnitude;
             }
         }
@@ -355,7 +366,7 @@ public class PhysicsMoveCtrl : Unit
 
         //Debug.Log("속도 : " + rigidbody.velocity);
 
-        if (rigidbody.velocity != Vector3.zero)
+        if(rigidbody.velocity != Vector3.zero)
         {
             Quaternion rot = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(rigidbody.velocity), 10f * Time.deltaTime);
             rot = Quaternion.Euler(new Vector3(0f, rot.eulerAngles.y, 0f));

@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using PathologicalGames;
 
-using Haro;
-
 public class DetectionCtrl : MonoBehaviour {
 
     AreaTargetTracker traker;

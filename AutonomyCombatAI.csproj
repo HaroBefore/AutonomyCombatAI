@@ -437,6 +437,7 @@
     <Compile Include="Assets\Scripts\DetectionCtrl.cs" />
     <Compile Include="Assets\Scripts\ExampleClass.cs" />
     <Compile Include="Assets\Scripts\PhysicsMoveCtrl.cs" />
+    <Compile Include="Assets\Scripts\State.cs" />
     <Compile Include="Assets\Scripts\Unit.cs" />
     <Compile Include="Assets\TriggerEventProExampleFiles\Scripts\DemoAreaTargetTrackerOnNotDetected.cs" />
     <Compile Include="Assets\TriggerEventProExampleFiles\Scripts\DemoEnemy.cs" />
