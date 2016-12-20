@@ -1,28 +1,28 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System;
-using UnityEditor;
+
+public enum eSteeringBehaviour
+{
+    seek = 0,
+    flee,
+    arrive,
+    pursuit,
+    wander,
+    obstacleAvoidance,
+    wallAvoidance,
+    offsetPursuit,
+    EndOfBehaviour
+}
 
 [Serializable]
-class SteeringBehaviours
+public class SteeringBehaviours
 {
     enum eDeceleration
     {
         slow = 3,
         normal = 2,
         fast = 1
-    }
-
-    public enum eSteeringBehaviour
-    {
-        seek = 0,
-        flee,
-        arrive,
-        pursuit,
-        wander,
-        obstacleAvoidance,
-        wallAvoidance,
-        EndOfBehaviour
     }
 
     bool[] isDoingBehavior;
@@ -69,8 +69,16 @@ class SteeringBehaviours
         }
         if (isDoingBehavior[(int)eSteeringBehaviour.pursuit])
         {
-            if (moveCtrl.nearUnit != null)
-                steeringForce += Pursuit(moveCtrl.pursuitTarget);
+            if (moveCtrl.Troop == null)
+            {
+                Debug.Log("Troop is NULL");
+            }
+            else
+            {
+                //부대이동으로 바꿔야함
+                if (moveCtrl.Troop.NearUnit != null)
+                    steeringForce += Pursuit(moveCtrl.pursuitTarget);
+            }
         }
         if (isDoingBehavior[(int)eSteeringBehaviour.wander])
         {
@@ -84,10 +92,15 @@ class SteeringBehaviours
         {
             steeringForce += WallAvoidance();
         }
+        if(isDoingBehavior[(int)eSteeringBehaviour.offsetPursuit])
+        {
+            steeringForce += OffsetPursuit();
+        }
 
         return steeringForce;
     }
 
+    //행동 플레그 세팅
     public void SetFlagBehaviour(eSteeringBehaviour behaviour, bool isFlagOn)
     {
         isDoingBehavior[(int)behaviour] = isFlagOn;
@@ -98,6 +111,7 @@ class SteeringBehaviours
         return isDoingBehavior[(int)behaviour];
     }
 
+    //찾기
     Vector3 Seek(Vector3 targetPos)
     {
         Vector3 desiredVelocity = Vector3.Normalize(targetPos - transform.position) * moveCtrl.maxForce;
@@ -105,13 +119,15 @@ class SteeringBehaviours
         return desiredVelocity - rigidbody.velocity;
     }
 
+    //도주
     Vector3 Flee(Vector3 targetPos)
     {
         Vector3 desiredVelocity = Vector3.Normalize(transform.position - targetPos) * moveCtrl.maxForce;
         desiredVelocity = new Vector3(desiredVelocity.x, 0f, desiredVelocity.z);
         return desiredVelocity - rigidbody.velocity;
     }
-
+    
+    //도착
     Vector3 Arrive(Vector3 targetPos, eDeceleration deceleration)
     {
         Vector3 toTarget = targetPos - transform.position;
@@ -130,20 +146,16 @@ class SteeringBehaviours
         return Vector3.zero;
     }
 
+    //추격
     Vector3 Pursuit(PhysicsMoveCtrl evader)
     {
         Vector3 toEvader = evader.transform.position - transform.position;
 
-        //Debug.Log(toEvader);
-
         float relativeHeading = Vector3.Dot(transform.forward, evader.transform.position);
         if ((Vector3.Dot(toEvader, transform.forward) > 0f) && (relativeHeading < -0.95f))
         {
-            Debug.Log("just seek");
             return Seek(evader.transform.position);
         }
-
-        //Debug.Log(relativeHeading);
 
         float lookAheadTime = toEvader.magnitude / (moveCtrl.maxSpeed + evader.rigidbody.velocity.magnitude);
         return Seek(evader.transform.position + evader.rigidbody.velocity * lookAheadTime);
@@ -153,6 +165,7 @@ class SteeringBehaviours
     public float wanderDistance = 4f;
     public float wanderJitter = 1.5f;
     Vector3 wanderTarget;
+    //배회
     Vector3 Wander()
     {
         wanderTarget = Vector3.zero;
@@ -164,12 +177,11 @@ class SteeringBehaviours
 
         moveCtrl.SetWanderGizmos(targetWorld, transform.position + (transform.forward * wanderDistance), wanderRadius);
 
-        //Debug.Log(targetWorld - transform.position);
-
         return (targetWorld - transform.position) * 2f;
     }
 
     float minDetectionBoxLength = 3f;
+    //장애물 피하기
     Vector3 ObstacleAvoidance()
     {
         Collider[] results = new Collider[30];
@@ -230,6 +242,7 @@ class SteeringBehaviours
         return transform.TransformVector(steeringForce);
     }
 
+    //벽피하기
     Vector3 WallAvoidance()
     {
         Ray[] feels = new Ray[3];
@@ -277,12 +290,22 @@ class SteeringBehaviours
 
         return steeringForce;
     }
+
+    //오프셋 추격
+    Vector3 OffsetPursuit()
+    {
+        return Arrive(Vector3.zero, eDeceleration.fast); 
+    }
 }
 
-
-
-public class PhysicsMoveCtrl : Unit
+[RequireComponent(typeof(Unit))]
+public class PhysicsMoveCtrl : MonoBehaviour
 {
+    Unit unit = null;
+    public Unit UnitInstance
+    {
+        get { return unit; }
+    }
 
     public new Rigidbody rigidbody;
     public float maxSpeed = 10f;
@@ -292,12 +315,21 @@ public class PhysicsMoveCtrl : Unit
 
     [SerializeField]
     SteeringBehaviours steering;
+    public SteeringBehaviours Steering
+    {
+        get { return steering; }
+    }
     Vector3 steeringForce;
 
-    DetectionCtrl detectionCtrl;
-    public Unit nearUnit;
+    TroopCtrl troopCtrl = null;
+    public TroopCtrl Troop
+    {
+        get { return troopCtrl; }
+        set { troopCtrl = value; }
+    }
 
     public Vector3 targetPos;
+    public Vector3 leaderPos;
 
     public PhysicsMoveCtrl pursuitTarget;
     public bool isPursuit;
@@ -305,56 +337,61 @@ public class PhysicsMoveCtrl : Unit
     // Use this for initialization
     void Awake()
     {
-        rigidbody = GetComponent<Rigidbody>();
         steering = new SteeringBehaviours(this);
-        detectionCtrl = GetComponent<DetectionCtrl>();
+        rigidbody = GetComponent<Rigidbody>();
+        unit = GetComponent<Unit>();
     }
 
     private void Start()
     {
+        for (int i = 0; i < steering.BehaviourCnt; i++)
+        {
+            steering.SetFlagBehaviour((eSteeringBehaviour)i, false);
+        }
         StartCoroutine(AIUpdate());
     }
 
     void FixedUpdate()
     {
-
-        for (int i = 0; i < steering.BehaviourCnt; i++)
+        ////NoneType
+        if(unit.Type == eUnitType.None)
         {
-            steering.SetFlagBehaviour((SteeringBehaviours.eSteeringBehaviour)i, false);
-        }
-
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hit;
-        Physics.Raycast(ray, out hit, 200f);
-        if (hit.collider != null)
-        {
-            if (hit.collider.CompareTag("Floor"))
-                targetPos = hit.point;
-            else
-                targetPos = Vector3.zero;
-
-            steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.seek, true);
-            steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.obstacleAvoidance, true);
-            steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wallAvoidance, true);
-        }
-        else
-        {
-            if (isPursuit)
+            for (int i = 0; i < steering.BehaviourCnt; i++)
             {
-                steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.pursuit, true);
+                steering.SetFlagBehaviour((eSteeringBehaviour)i, false);
+            }
+
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            Physics.Raycast(ray, out hit, 200f);
+            if (hit.collider != null)
+            {
+                if (hit.collider.CompareTag("Floor"))
+                    targetPos = hit.point;
+                else
+                    targetPos = Vector3.zero;
+
+                steering.SetFlagBehaviour(eSteeringBehaviour.seek, true);
+                steering.SetFlagBehaviour(eSteeringBehaviour.obstacleAvoidance, true);
+                steering.SetFlagBehaviour(eSteeringBehaviour.wallAvoidance, true);
             }
             else
             {
-                steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wander, true);
-                steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.obstacleAvoidance, true);
-                steering.SetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wallAvoidance, true);
+                if (isPursuit)
+                {
+                    steering.SetFlagBehaviour(eSteeringBehaviour.pursuit, true);
+                }
+                else
+                {
+                    steering.SetFlagBehaviour(eSteeringBehaviour.wander, true);
+                    steering.SetFlagBehaviour(eSteeringBehaviour.obstacleAvoidance, true);
+                    steering.SetFlagBehaviour(eSteeringBehaviour.wallAvoidance, true);
+                }
             }
         }
+        ////
 
-        //steeringForce = steering.Calculate(targetPos);
-
-        //Debug.Log("속도 : " + rigidbody.velocity);
-
+        //회전 방향 및 속도 계산
         if (rigidbody.velocity != Vector3.zero)
         {
             Quaternion rot = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(rigidbody.velocity), 10f * Time.deltaTime);
@@ -383,17 +420,17 @@ public class PhysicsMoveCtrl : Unit
             {
                 Gizmos.DrawLine(transform.position, transform.position + rigidbody.velocity);
 
-                if (steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wander))
+                if (steering.GetFlagBehaviour(eSteeringBehaviour.wander))
                 {
                     Gizmos.DrawWireSphere(debugWanderDesirePos, 0.5f);
                     Gizmos.DrawWireSphere(debugWanderSphereCenter, debugWanderSphereRadius);
                 }
-                if (steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.obstacleAvoidance))
+                if (steering.GetFlagBehaviour(eSteeringBehaviour.obstacleAvoidance))
                 {
                     Gizmos.color = Color.red;
                     Gizmos.DrawRay(transform.position, transform.forward * debugObstacleAvoidanceBoxScale.z);
                 }
-                if (steering.GetFlagBehaviour(SteeringBehaviours.eSteeringBehaviour.wallAvoidance))
+                if (steering.GetFlagBehaviour(eSteeringBehaviour.wallAvoidance))
                 {
                     Gizmos.color = Color.green;
                     Gizmos.DrawLine(transform.position, transform.position + debugWallAvoidanceFoward.direction * 5f);
